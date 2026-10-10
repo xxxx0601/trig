@@ -1,0 +1,18 @@
+# Workflow page, code and assets
+/workflow.html
+/static/css/workflow.css
+/static/js/workflow*.js
+/static/js/template-previews.js
+/source/workflow/
+/optimized-map/
+
+# Analysis materials not used by the main site
+/analysis/
+
+# Currently unused figure
+/source/figure/dataset_hist.png
+
+# Local metadata and caches
+.DS_Store
+__pycache__/
+*.pyc

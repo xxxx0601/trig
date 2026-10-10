@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="TailorRig is a controllable and structured framework for garment-aware humanoid rigging.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TailorRig: Controllable and Structured Auxiliary Skeleton Generation for Garment-Aware Rigging</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/index.css?v=20261009-video1">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="./static/js/viewer.js?v=20261009-tabs1"></script>
+  <script src="./static/js/reveal.js?v=20260831-1" defer></script>
+</head>
+<body>
+
+<main>
+  <section class="hero publication-header">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">
+              <span class="project-name">TailorRig</span>: Controllable and Structured Auxiliary Skeleton Generation for Garment-Aware Rigging
+            </h1>
+            <p class="publication-venue">SIGGRAPH ASIA 2026</p>
+
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">Yajing Chen<sup>*&dagger;,1</sup>,</span>
+              <span class="author-block">Xin Chen<sup>*,2</sup>,</span>
+              <span class="author-block">Saidan Lu<sup>*,1</sup>,</span>
+              <span class="author-block">Yeqi Yuan<sup>3</sup>,</span>
+              <span class="author-block">Weikai Chen<sup>1</sup>,</span>
+              <span class="author-block">Changyu Hu<sup>4</sup>,</span>
+              <span class="author-block">Cheng Zeng<sup>4</sup>,</span>
+              <span class="author-block">Xin Wang<sup>1</sup></span>
+            </div>
+
+            <div class="is-size-6 publication-affiliations">
+              <span class="author-block"><sup>1</sup>LIGHTSPEED, Tencent</span>
+              <span class="author-block"><sup>2</sup>Xi'an Jiaotong University</span>
+              <span class="author-block"><sup>3</sup>Peking University</span>
+              <span class="author-block"><sup>4</sup>Tsinghua University</span>
+            </div>
+
+            <p class="contribution-note"><sup>*</sup>Equal contribution &nbsp; <sup>&dagger;</sup>Corresponding author</p>
+
+            <div class="publication-links">
+              <!-- Add the final URL to each button data-url attribute when ready. -->
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="">
+                  <span class="icon" aria-hidden="true"><i class="fa-solid fa-file-pdf"></i></span>
+                  <span>Paper</span>
+                </button>
+              </span>
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="">
+                  <span class="icon" aria-hidden="true"><i class="fa-solid fa-file-pdf"></i></span>
+                  <span>Appendix</span>
+                </button>
+              </span>
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="">
+                  <span class="icon" aria-hidden="true"><i class="fa-brands fa-github"></i></span>
+                  <span>Code</span>
+                </button>
+              </span>
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="#demo">
+                  <span class="icon" aria-hidden="true"><i class="fa-solid fa-video"></i></span>
+                  <span>Video</span>
+                </button>
+              </span>
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="">
+                  <span class="icon" aria-hidden="true"><i class="fa-solid fa-database"></i></span>
+                  <span>Data</span>
+                </button>
+              </span>
+              <span class="link-block">
+                <button class="external-link button is-normal is-rounded is-dark reserved-link" type="button" data-url="">
+                  <span class="icon" aria-hidden="true"><i class="fa-solid fa-cube"></i></span>
+                  <span>Model</span>
+                </button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section demo-section" id="demo" aria-label="TailorRig demo video">
+    <div class="container is-max-desktop">
+      <div class="demo-frame" data-reveal>
+        <video class="demo-video" controls playsinline preload="metadata" aria-label="TailorRig demo">
+          <source src="./source/video/demo.mov">
+          Your browser does not support embedded video. <a href="./source/video/demo.mov">Download the demo video</a>.
+        </video>
+      </div>
+    </div>
+  </section>
+
+  <section class="section abstract-section" aria-labelledby="abstract-title">
+    <div class="container is-widescreen">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3" id="abstract-title" data-reveal>Abstract</h2>
+          <div class="content has-text-justified abstract-copy" data-reveal data-reveal-delay="80">
+            <p>
+              Humanoid rigging for modern characters with complex garments remains challenging due to the need for dense auxiliary skeletons and precise skinning control. Existing automatic methods primarily recover rigs from geometry, providing limited artist control over auxiliary articulation and often lacking explicit semantic or kinematic-chain structure for dense garment bones, leading to instability and weight bleeding.
+            </p>
+            <p>
+              We present <span class="project-name">TailorRig</span>, a framework that reformulates garment-aware humanoid rigging as a structured, controllable full-rig generation problem. TailorRig exposes two explicit axes of artist control within a unified framework: a user-specified body skeleton template that preserves body-rig compatibility, and artist-provided semantic labels that drive an autoregressive generator to synthesize requested category-specific auxiliary bone chains. To robustly assign skinning weights under dense skeletal configurations, we further introduce a hierarchical chain-to-bone formulation: vertices are first associated with a kinematic chain, and bone weights are then refined within that chain, reducing weight bleeding between spatially adjacent but semantically unrelated structures.
+            </p>
+            <p>
+              We evaluate TailorRig on a diverse set of characters and introduce Human-Mix, a large-scale dataset of over 38,000 humanoid models curated for garment-aware rigging. Experiments show that TailorRig improves skeleton accuracy, deformation stability, controllability, and practical usability over existing methods.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section animation-section" aria-labelledby="animation-title">
+    <div class="container is-widescreen">
+      <h2 class="title is-3 has-text-centered" id="animation-title" data-reveal>Animation Comparison</h2>
+      <p class="section-lead has-text-centered" data-reveal data-reveal-delay="70">
+        Choose a character to compare ground truth and four rigging results driven by the same motion.
+      </p>
+      <div class="animation-comparison" data-reveal data-reveal-delay="140">
+        <div class="animation-selector">
+          <div class="animation-tabs" id="animation-tabs" role="tablist" aria-label="Choose a character"></div>
+        </div>
+        <div class="animation-strip" aria-label="Five-method animation comparison">
+          <div id="animation-grid"></div>
+        </div>
+        <script src="./static/js/animation-grid.js?v=20261009-tabs1"></script>
+      </div>
+    </div>
+  </section>
+
+  <section class="section model-section" aria-labelledby="model-title">
+    <div class="container is-widescreen">
+      <h2 class="title is-3 has-text-centered" id="model-title" data-reveal>Interactive 3D Results</h2>
+      <div class="model-grid" data-reveal data-reveal-delay="90">
+        <article class="model-card rig-viewer" data-model="./source/model1.glb">
+          <header class="model-card-header">
+            <h3>Result 01</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 01"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 01 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+        <article class="model-card rig-viewer" data-model="./source/model2.glb">
+          <header class="model-card-header">
+            <h3>Result 02</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 02"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 02 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+        <article class="model-card rig-viewer" data-model="./source/model3.glb">
+          <header class="model-card-header">
+            <h3>Result 03</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 03"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 03 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+        <article class="model-card rig-viewer" data-model="./source/model4.glb">
+          <header class="model-card-header">
+            <h3>Result 04</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 04"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 04 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+        <article class="model-card rig-viewer" data-model="./source/model5.glb">
+          <header class="model-card-header">
+            <h3>Result 05</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 05"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 05 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+        <article class="model-card rig-viewer" data-model="./source/model6.glb">
+          <header class="model-card-header">
+            <h3>Result 06</h3>
+          </header>
+          <div class="viewer-stage">
+            <canvas class="rig-canvas" aria-label="Interactive TailorRig result 06"></canvas>
+            <div class="viewer-status" role="status">Loading 3D model…</div>
+          </div>
+          <div class="viewer-controls" aria-label="Result 06 display modes">
+            <button class="viewer-mode is-active" type="button" data-mode="mesh" aria-pressed="true" disabled>Mesh</button>
+            <span class="bone-mode-buttons"></span>
+            <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
+          </div>
+          <p class="model-instructions">
+            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
+            Drag to rotate · Scroll or pinch to zoom
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section method-section" aria-labelledby="method-title">
+    <div class="container is-widescreen">
+      <h2 class="title is-3 has-text-centered" id="method-title" data-reveal>Method</h2>
+
+      <figure class="method-figure pipeline-figure" data-reveal data-reveal-delay="70">
+        <img
+          src="./source/figure/pipeline.png"
+          alt="TailorRig pipeline from a mesh, body template, and auxiliary labels through controllable skeleton generation and hierarchical chain-to-bone skinning"
+          width="4124"
+          height="1278">
+        <figcaption>
+          The TailorRig pipeline combines controllable body-to-auxiliary skeleton generation with hierarchical chain-to-bone skinning.
+        </figcaption>
+      </figure>
+
+      <div class="content has-text-justified method-copy" data-reveal data-reveal-delay="120">
+        <p>
+          <span class="project-name">TailorRig</span> takes a character mesh, an artist-specified body skeleton template, and a selected set of auxiliary categories as input, and produces a complete skeleton together with skinning weights. The body template provides the first axis of control. It is canonicalized into a standard pose and encoded while retaining its original topology, after which a topology-aware mesh-bone fusion decoder aligns its joints to the target geometry. Because the connectivity of the template is preserved throughout this process, the resulting body rig remains compatible with the artist's intended skeletal convention and can directly reuse existing animation assets.
+        </p>
+
+        <p>
+          Auxiliary category labels provide the second axis of control. Rather than treating a label such as skirt, hair, sleeve, or accessory as a global tag, TailorRig grounds it in the current character through reciprocal attention between mesh features and the aligned body skeleton. The resulting geometry-aware label representation conditions a structured autoregressive decoder, which serializes and predicts each auxiliary skeleton tree as an ordered sequence. This formulation allows artists to request any subset of supported categories while generating only the corresponding auxiliary chains and attaching them consistently to the body rig.
+        </p>
+
+        <p>
+          After skeleton generation, TailorRig predicts skinning weights with a hierarchical chain-to-bone formulation. The full skeleton is first partitioned into kinematic chains, and each vertex is softly associated with the most relevant chains using learned feature similarity together with geodesic distance cues. Bone-level weights are then refined within this structural context, with each bone prediction conditioned on the weight of its parent chain. This coarse-to-fine organization narrows competition to structurally related bones and reduces weight bleeding between spatially close but semantically unrelated regions, such as arms, garments, and accessories.
+        </p>
+
+        <p>
+          Training and evaluation use <strong>Human-Mix</strong>, which contains 38,088 rigged humanoid characters annotated with a 21-class taxonomy covering 11 body classes and 10 auxiliary categories. Among them, 7,824 characters contain at least one auxiliary category. These annotations provide the semantic and structural supervision needed for body alignment, auxiliary skeleton generation, and hierarchical skinning across diverse character and garment configurations.
+        </p>
+      </div>
+    </div>
+  </section>
+
+<section class="section bibtex-section" id="BibTeX" aria-labelledby="bibtex-title">
+    <div class="container is-max-desktop content">
+      <h2 class="title is-3" id="bibtex-title" data-reveal>BibTeX</h2>
+      <p class="bibtex-note" data-reveal data-reveal-delay="60">Placeholder citation. The final entry will be updated after publication.</p>
+      <pre data-reveal data-reveal-delay="110"><code>@inproceedings{chen2026tailorrig,
+  title     = {TailorRig: Controllable and Structured Auxiliary Skeleton Generation for Garment-Aware Rigging},
+  author    = {Chen, Yajing and Chen, Xin and Lu, Saidan and Yuan, Yeqi and Chen, Weikai and Hu, Changyu and Zeng, Cheng and Wang, Xin},
+  booktitle = {SIGGRAPH Asia 2026 Conference Papers},
+  year      = {2026},
+  note      = {To appear}
+}</code></pre>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8 has-text-centered">
+        <p>
+          Website template adapted from the
+          <a href="https://github.com/nerfies/nerfies.github.io">Nerfies project page</a>.
+          The original template is licensed under
+          <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll(".reserved-link").forEach((button) => {
+    button.addEventListener("click", () => {
+      const url = button.dataset.url.trim();
+      if (!url) {
+        return;
+      }
+
+      if (url.startsWith("#")) {
+        document.querySelector(url)?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
