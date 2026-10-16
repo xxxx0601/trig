@@ -223,7 +223,25 @@ const BONE_KEYWORDS = ["skirt", "hair", "sleeve", "cape", "accessory"];
 
 To replace or extend the examples, update the `data-model` paths in `index.html`.
 
-Animation cards use the same `RigViewer` implementation as the static cards. The character tabs and five method columns are defined in `static/js/animation-grid.js`. Only the selected character's row is displayed, initially Model; inactive rows cannot load or render. Switching characters immediately pauses the old row, removes its queued requests, and cancels unfinished model downloads. Loaded cards use the existing bounded idle cache. `static/js/viewer.js` loads at most two nearby models at a time; the first clip in each GLB plays in a loop while its stage is onscreen. The five methods remain in one horizontally scrollable row on narrow screens. Tabs support arrow keys, Home, and End, and the missing Fox/MIA output has a visible placeholder.
+Animation cards use the same `RigViewer` implementation as the static cards. The
+character tabs and five method columns are defined in `static/js/animation-grid.js`.
+Only the selected character's row is displayed, initially Model; inactive rows
+cannot load or render. Switching characters immediately pauses the old row,
+removes its queued requests, and cancels unfinished model downloads. The five
+methods remain in one horizontally scrollable row on narrow screens. Tabs support
+arrow keys, Home, and End, and the missing Fox/MIA output has a visible placeholder.
+
+When any method approaches the viewport, the entire selected comparison row loads
+with at most two concurrent model requests, including horizontally hidden cards.
+Prepared models wait at the beginning until all available methods finish loading.
+The row then plays from one shared clock, with every clip retaining its original
+speed. Each loop ends at the shortest clip's duration and all methods return to
+the beginning together; longer clips' remaining tails are skipped. Hidden cards
+join the current shared phase when revealed. The entire row pauses when it leaves
+the viewport or the browser tab is hidden. Switching characters resets that row's
+clock; returning waits for any evicted models before restarting together. Missing
+results do not participate in the wait. Failed loads retain an error message, and
+the successful methods start together after all requests finish.
 
 All 25 homepage GLBs (six static models and 19 animation results) contain no
 texture images or texture references. Embedded image bytes have been removed
@@ -236,7 +254,9 @@ The standalone workflow assets are outside this cleanup's scope.
 ### Main-page performance and caching
 
 Models within 140 vertical / 160 horizontal pixels of the viewport can preload,
-with two concurrent loads and onscreen cards taking priority. A separate observer
+with two concurrent loads and onscreen cards taking priority. A nearby animation
+card also preloads and retains every method in its selected comparison row, so
+the synchronization barrier can finish on narrow screens. A separate observer
 starts rendering only when the 3D stage actually intersects the viewport.
 Leaving the viewport immediately stops rendering. Up to three recently inactive
 cards retain their model, camera, and display mode for ten seconds; older cards
@@ -258,7 +278,7 @@ and vertex colors are generated on the first Weights click and reused until the
 card is disposed. Runtime normal smoothing, automatic rotation, frame rate,
 shadow resolution, and asset files retain their existing behavior.
 
-Run the focused cache, weight, and lifecycle checks with:
+Run the focused cache, weight, lifecycle, and synchronized playback checks with:
 
 ```bash
 node tests/viewer.test.mjs

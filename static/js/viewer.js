@@ -40,6 +40,7 @@ const MAX_CONCURRENT_VIEWER_LOADS = 2;
 const viewerLoadQueue = [];
 const idleViewers = new Map();
 const viewers = [];
+const animationGroups = new Map();
 let activeViewerLoads = 0;
 
 function processViewerLoadQueue() {
@@ -50,7 +51,11 @@ function processViewerLoadQueue() {
     const viewer = viewerLoadQueue.shift();
     viewer.isQueued = false;
 
-    if (viewer.isEnabled === false || !viewer.isNearViewport || viewer.isInitialized || viewer.isLoading) {
+    if (
+      viewer.isEnabled === false ||
+      !(viewer.isNearViewport || viewer.animationGroup?.isNearViewport) ||
+      viewer.isInitialized || viewer.isLoading
+    ) {
       continue;
     }
 
@@ -63,13 +68,93 @@ function processViewerLoadQueue() {
 }
 
 function retainIdleViewer(viewer) {
-  if (viewer.isVisible || !viewer.renderer) return;
+  if (viewer.isVisible || !viewer.renderer || viewer.animationGroup?.isNearViewport) return;
   idleViewers.delete(viewer);
   idleViewers.set(viewer, true);
   window.clearTimeout(viewer.releaseTimer);
   viewer.releaseTimer = window.setTimeout(() => viewer.destroy(), VIEWER_RELEASE_DELAY);
   while (idleViewers.size > MAX_IDLE_VIEWERS) {
     idleViewers.keys().next().value.destroy();
+  }
+}
+
+class AnimationPlaybackGroup {
+  constructor(panel) {
+    this.panel = panel;
+    this.viewers = [];
+    this.ready = false;
+    this.elapsed = 0;
+    this.loopDuration = 0;
+    this.startedAt = null;
+    this.isUpdating = false;
+  }
+
+  get isNearViewport() {
+    return this.viewers.some((viewer) => (
+      viewer.isEnabled !== false && (viewer.isNearViewport || viewer.isVisible)
+    ));
+  }
+
+  get isPlaying() {
+    return this.startedAt !== null;
+  }
+
+  timeAt(now) {
+    const elapsed = this.elapsed + (this.isPlaying ? Math.max(0, now - this.startedAt) / 1000 : 0);
+    // Preserve each clip's speed, cutting longer clips at the shortest one's
+    // endpoint so every method wraps back to the beginning on the same frame.
+    return this.loopDuration > 0 ? elapsed % this.loopDuration : elapsed;
+  }
+
+  update(now = performance.now()) {
+    if (this.isUpdating) return;
+    this.isUpdating = true;
+    try {
+      // A visible comparison needs every method, including horizontally hidden
+      // cards. Keep the whole nearby row out of the bounded idle cache.
+      if (this.isNearViewport) {
+        this.viewers.forEach((viewer) => {
+          if (viewer.isEnabled === false) return;
+          idleViewers.delete(viewer);
+          window.clearTimeout(viewer.releaseTimer);
+          viewer.releaseTimer = null;
+          viewer.init();
+        });
+      }
+
+      const enabled = this.viewers.some((viewer) => viewer.isEnabled !== false);
+      const readyCount = this.viewers.filter((viewer) => viewer.isInitialized && !viewer.isLoading).length;
+      // Errors settle a member too: retain its error message and let the other
+      // methods start together after every request has finished.
+      this.ready = enabled && readyCount === this.viewers.length;
+      const durations = this.viewers
+        .filter((viewer) => !viewer.hasLoadError)
+        .map((viewer) => viewer.animationClip?.duration)
+        .filter((duration) => Number.isFinite(duration) && duration > 0);
+      this.loopDuration = durations.length ? Math.min(...durations) : 0;
+      this.elapsed = this.ready ? this.timeAt(now) : 0;
+      const playing = this.ready && !document.hidden && this.viewers.some((viewer) => (
+        viewer.isEnabled !== false && viewer.isVisible && !viewer.hasLoadError
+      ));
+      this.startedAt = playing ? now : null;
+      this.panel.dataset.playbackState = this.ready ? (playing ? "playing" : "paused") : "loading";
+      this.panel.dataset.readyCount = String(readyCount);
+
+      this.viewers.forEach((viewer) => {
+        if (viewer.isInitialized && !viewer.hasLoadError) {
+          viewer.status.hidden = this.ready;
+          if (!this.ready) {
+            viewer.status.textContent = `Waiting for other models… (${readyCount}/${this.viewers.length})`;
+            viewer.mixer?.setTime(0);
+          }
+          viewer.card.setAttribute("aria-busy", String(!this.ready));
+        }
+        viewer.updatePlayback();
+        if (!this.isNearViewport && !idleViewers.has(viewer)) retainIdleViewer(viewer);
+      });
+    } finally {
+      this.isUpdating = false;
+    }
   }
 }
 
@@ -319,6 +404,7 @@ class RigViewer {
     this.fittedBox = null;
     this.lastFrameTime = null;
     this.isInitialized = false;
+    this.hasLoadError = false;
     this.isLoading = false;
     this.isQueued = false;
     this.loadGeneration = 0;
@@ -338,11 +424,16 @@ class RigViewer {
   }
 
   async startLoading() {
-    if (this.isEnabled === false || !this.isNearViewport || this.isInitialized || this.isLoading) {
+    if (
+      this.isEnabled === false ||
+      !(this.isNearViewport || this.animationGroup?.isNearViewport) ||
+      this.isInitialized || this.isLoading
+    ) {
       return;
     }
 
     this.isLoading = true;
+    this.hasLoadError = false;
     this.loadAbort = new AbortController();
     const loadGeneration = ++this.loadGeneration;
     this.status.hidden = false;
@@ -380,6 +471,7 @@ class RigViewer {
       this.card.classList.remove("is-loading");
       this.card.setAttribute("aria-busy", "false");
       this.isInitialized = true;
+      this.renderer.render(this.scene, this.camera);
     } catch (error) {
       if (loadGeneration !== this.loadGeneration) {
         return;
@@ -391,10 +483,12 @@ class RigViewer {
       this.card.classList.remove("is-loading");
       this.card.setAttribute("aria-busy", "false");
       this.isInitialized = true;
+      this.hasLoadError = true;
     } finally {
       if (loadGeneration === this.loadGeneration) {
         this.isLoading = false;
         this.loadAbort = null;
+        this.animationGroup?.update();
         this.updatePlayback();
         retainIdleViewer(this);
       }
@@ -458,7 +552,11 @@ class RigViewer {
       }
 
       if (this.mixer) {
-        this.mixer.update(delta);
+        if (this.animationGroup) {
+          this.mixer.setTime(this.animationGroup.timeAt(time));
+        } else {
+          this.mixer.update(delta);
+        }
       }
 
       if (this.skeletonVisual) {
@@ -494,6 +592,7 @@ class RigViewer {
   setVisible(isVisible) {
     isVisible = isVisible && this.isEnabled !== false;
     this.isVisible = isVisible;
+    this.animationGroup?.update();
     this.updatePlayback();
 
     if (isVisible) {
@@ -514,11 +613,13 @@ class RigViewer {
 
   setNearViewport(isNearViewport) {
     this.isNearViewport = this.isEnabled !== false && (isNearViewport || this.isVisible);
-    if (this.isNearViewport) this.init();
+    if (this.animationGroup) this.animationGroup.update();
+    else if (this.isNearViewport) this.init();
   }
 
   updatePlayback() {
-    const playing = this.isEnabled !== false && this.isVisible && !document.hidden && this.isInitialized;
+    const playing = this.isEnabled !== false && this.isVisible && !document.hidden && this.isInitialized
+      && !this.hasLoadError && (!this.animationGroup || this.animationGroup.isPlaying);
     this.lastFrameTime = null;
     this.renderer?.setAnimationLoop(playing ? this.renderFrame : null);
     if (this.orbitControls) this.orbitControls.enabled = playing;
@@ -534,6 +635,7 @@ class RigViewer {
     this.isLoading = false;
     this.isQueued = false;
     this.isInitialized = false;
+    this.hasLoadError = false;
     this.isVisible = false;
     const queueIndex = viewerLoadQueue.indexOf(this);
     if (queueIndex !== -1) viewerLoadQueue.splice(queueIndex, 1);
@@ -621,6 +723,7 @@ class RigViewer {
     this.camera = null;
     this.orbitControls = null;
     this.resizeObserver = null;
+    this.animationGroup?.update();
   }
 
   resize() {
@@ -1109,6 +1212,15 @@ document.querySelectorAll(".rig-viewer").forEach((card) => {
   viewer.stage.rigViewer = viewer;
   viewers.push(viewer);
 
+  const panel = card.dataset.animation && card.closest(".animation-panel");
+  if (panel) {
+    if (!animationGroups.has(panel)) animationGroups.set(panel, new AnimationPlaybackGroup(panel));
+    viewer.animationGroup = animationGroups.get(panel);
+    viewer.animationGroup.viewers.push(viewer);
+  }
+});
+
+viewers.forEach((viewer) => {
   if (preloadObserver) {
     preloadObserver.observe(viewer.stage);
     visibilityObserver.observe(viewer.stage);
@@ -1118,6 +1230,7 @@ document.querySelectorAll(".rig-viewer").forEach((card) => {
 });
 
 document.addEventListener("visibilitychange", () => {
+  animationGroups.forEach((group) => group.update());
   viewers.forEach((viewer) => viewer.updatePlayback());
   if (!document.hidden) processViewerLoadQueue();
 });
@@ -1129,4 +1242,5 @@ document.addEventListener("animation-sample-change", () => {
       if (!preloadObserver) viewer.setVisible(viewer.isEnabled);
     }
   });
+  animationGroups.forEach((group) => group.update());
 });

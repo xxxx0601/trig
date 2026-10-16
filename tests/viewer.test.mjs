@@ -7,6 +7,7 @@ const cacheSource = readFileSync(new URL("../static/js/viewer-cache.js", import.
 const viewerSource = readFileSync(new URL("../static/js/viewer.js", import.meta.url), "utf8").replace(/^import[\s\S]*?;\n/gm, "");
 
 function harness(saved = new Map(), blockedStorage = false) {
+  let now = 0;
   let timerId = 0;
   const timers = new Map();
   class Vector3 {
@@ -29,6 +30,7 @@ function harness(saved = new Map(), blockedStorage = false) {
   };
   const context = vm.createContext({
     console, URL, crypto: webcrypto, Uint8Array, Float32Array, document, window,
+    performance: { now: () => now },
     THREE: {
       Vector3, Box3, BufferAttribute,
       MathUtils: { degToRad: (value) => value * Math.PI / 180 },
@@ -41,8 +43,8 @@ function harness(saved = new Map(), blockedStorage = false) {
       setItem(key, value) { if (blockedStorage) throw new Error("quota"); saved.set(key, value); },
     },
   });
-  vm.runInContext(`${cacheSource}\n${viewerSource}\nglobalThis.testAPI = { RigViewer, fingerprintModel, readModelBounds, saveModelBounds, idleViewers, retainIdleViewer, viewerLoadQueue, processViewerLoadQueue };`, context);
-  return { ...context.testAPI, context, timers, document, saved };
+  vm.runInContext(`${cacheSource}\n${viewerSource}\nglobalThis.testAPI = { RigViewer, AnimationPlaybackGroup, fingerprintModel, readModelBounds, saveModelBounds, idleViewers, retainIdleViewer, viewerLoadQueue, processViewerLoadQueue };`, context);
+  return { ...context.testAPI, context, timers, document, saved, setNow: (value) => { now = value; } };
 }
 
 const h = harness();
@@ -198,3 +200,154 @@ inactive.destroy = () => { canceledLoad = true; };
 inactive.setEnabled(false);
 assert.equal(canceledLoad, true);
 console.log("PASS: inactive character rows cannot load or play, including stale visibility callbacks; switching removes queued loads and cancels unfinished loads.");
+
+function comparison(h, durations) {
+  const group = new h.AnimationPlaybackGroup({ dataset: {} });
+  const requests = [];
+  const completions = new Map();
+  const makeRenderer = (viewer) => ({ setAnimationLoop: (callback) => { viewer.loop = callback; } });
+  group.viewers = durations.map((duration, index) => {
+    const viewer = Object.create(h.RigViewer.prototype);
+    Object.assign(viewer, {
+      animationGroup: group, isEnabled: true, isNearViewport: index === 0,
+      isVisible: index < 2, isInitialized: false, isLoading: false, isQueued: false,
+      hasLoadError: false, releaseTimer: null, loop: null, orbitControls: {},
+      status: { hidden: false, textContent: "Loading animation…" },
+      card: { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } },
+      renderFrame() {},
+      startLoading() {
+        this.isLoading = true;
+        this.renderer = makeRenderer(this);
+        requests.push(index);
+        return new Promise((resolve) => {
+          completions.set(index, (error = false) => {
+            completions.delete(index);
+            this.isLoading = false;
+            this.isInitialized = true;
+            this.hasLoadError = error;
+            this.animationClip = error ? null : { duration };
+            this.mixer = error ? null : { time: 0, setTime(time) { this.time = time; } };
+            if (error) this.status.textContent = "Unable to load this model.";
+            group.update();
+            resolve();
+          });
+        });
+      },
+      destroy() {
+        h.idleViewers.delete(this);
+        h.context.window.clearTimeout(this.releaseTimer);
+        this.releaseTimer = null;
+        this.renderer = null;
+        this.loop = null;
+        this.isInitialized = false;
+        this.animationClip = null;
+        this.mixer = null;
+        group.update();
+      },
+    });
+    return viewer;
+  });
+  return { group, requests, completions };
+}
+
+const sync = harness();
+const row = comparison(sync, [4.58, 3.75, 3.75, 3.75, 3.75]);
+row.group.update();
+assert.deepEqual(row.requests, [0, 1]);
+assert.equal(sync.viewerLoadQueue.length, 3);
+for (let index = 0; index < 5; index++) {
+  sync.setNow((index + 1) * 100);
+  assert.ok(row.completions.has(index));
+  row.completions.get(index)();
+  await new Promise((resolve) => setImmediate(resolve));
+  if (index < 4) {
+    assert.equal(row.group.isPlaying, false);
+    assert.ok(row.group.viewers.every((viewer) => viewer.loop === null));
+    assert.match(row.group.viewers[0].status.textContent, /Waiting for other models/);
+    assert.equal(row.group.viewers[0].mixer.time, 0);
+  }
+}
+assert.deepEqual(row.requests, [0, 1, 2, 3, 4]);
+assert.equal(row.group.ready, true);
+assert.equal(row.group.isPlaying, true);
+assert.equal(row.group.loopDuration, 3.75);
+assert.equal(row.group.panel.dataset.readyCount, "5");
+assert.ok(row.group.viewers.every((viewer) => viewer.status.hidden));
+assert.equal(row.group.viewers[0].loop, row.group.viewers[0].renderFrame);
+assert.equal(row.group.viewers[4].loop, null);
+row.group.viewers.forEach(sync.retainIdleViewer);
+assert.equal(sync.idleViewers.size, 0);
+assert.equal(row.group.timeAt(500), 0);
+assert.equal(row.group.timeAt(4249), 3.749);
+assert.equal(row.group.timeAt(4250), 0);
+assert.ok(Math.abs(row.group.timeAt(4350) - 0.1) < 1e-12);
+console.log("PASS: staggered two-at-a-time loads include offscreen methods; none plays early; the entire row loops at the shortest clip duration without changing speed or being evicted.");
+
+sync.setNow(1500);
+row.group.viewers[4].setVisible(true);
+assert.equal(row.group.viewers[4].loop, row.group.viewers[4].renderFrame);
+assert.equal(row.group.timeAt(1600), 1.1);
+sync.setNow(2000);
+sync.document.hidden = true;
+row.group.update();
+assert.equal(row.group.timeAt(10000), 1.5);
+assert.ok(row.group.viewers.every((viewer) => viewer.loop === null));
+sync.setNow(10000);
+sync.document.hidden = false;
+row.group.update();
+assert.equal(row.group.timeAt(10500), 2);
+sync.setNow(10500);
+row.group.viewers.forEach((viewer) => { viewer.isVisible = false; });
+row.group.update();
+assert.equal(row.group.timeAt(20000), 2);
+sync.setNow(20000);
+row.group.viewers[0].setVisible(true);
+assert.equal(row.group.timeAt(20500), 2.5);
+assert.equal(row.group.timeAt(21750), 0);
+console.log("PASS: horizontally revealed cards join the shared phase; background and fully offscreen rows pause together and resume without drift across loop boundaries.");
+
+sync.setNow(22000);
+row.group.viewers.forEach((viewer) => {
+  viewer.isEnabled = false;
+  viewer.isVisible = false;
+  viewer.isNearViewport = false;
+});
+row.group.update();
+assert.equal(row.group.isPlaying, false);
+assert.equal(row.group.timeAt(23000), 0);
+assert.equal(sync.idleViewers.size, 3);
+assert.equal(row.group.viewers.filter((viewer) => !viewer.isInitialized).length, 2);
+row.group.viewers.forEach((viewer) => { viewer.isEnabled = true; });
+row.group.viewers[0].isVisible = true;
+row.group.viewers[0].isNearViewport = true;
+row.group.update();
+assert.equal(row.group.isPlaying, false);
+assert.equal(sync.idleViewers.size, 0);
+sync.setNow(23000);
+row.completions.get(0)();
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(row.group.isPlaying, false);
+sync.setNow(24000);
+row.completions.get(1)();
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(row.group.isPlaying, true);
+assert.equal(row.group.timeAt(24000), 0);
+assert.equal(row.group.timeAt(24500), 0.5);
+console.log("PASS: switching characters resets the row clock; returning after partial cache eviction waits for replacements and restarts every method together.");
+
+const missing = harness();
+const fox = comparison(missing, [3.79, 3.79, 3.79, 3.79]);
+fox.group.update();
+for (let index = 0; index < 4; index++) {
+  missing.setNow((index + 1) * 100);
+  fox.completions.get(index)(index === 1);
+  await new Promise((resolve) => setImmediate(resolve));
+  if (index < 3) assert.equal(fox.group.isPlaying, false);
+}
+assert.equal(fox.group.panel.dataset.readyCount, "4");
+assert.equal(fox.group.isPlaying, true);
+assert.equal(fox.group.viewers[1].loop, null);
+assert.equal(fox.group.viewers[1].status.hidden, false);
+assert.equal(fox.group.viewers[1].status.textContent, "Unable to load this model.");
+assert.equal(fox.group.viewers[0].loop, fox.group.viewers[0].renderFrame);
+console.log("PASS: missing method placeholders are excluded; a failed load retains its error and does not leave successful comparisons waiting forever.");
