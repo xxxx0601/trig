@@ -170,20 +170,6 @@ function materialList(material) {
   return Array.isArray(material) ? material : [material];
 }
 
-function materialHasTexture(material) {
-  return materialList(material).some((entry) => (
-    entry && Object.values(entry).some((value) => value?.isTexture)
-  ));
-}
-
-function cloneMaterial(material) {
-  if (Array.isArray(material)) {
-    return material.map((entry) => entry.clone());
-  }
-
-  return material.clone();
-}
-
 // Several exported examples contain a separate vertex normal for almost every
 // triangle. Average normals only across coincident vertices whose source normals
 // already point in a similar direction, preserving intentional creases while
@@ -322,7 +308,6 @@ class RigViewer {
     this.skeletonSegments = [];
     this.meshRecords = [];
     this.boneRecords = [];
-    this.hasTextureMaterial = false;
     this.mixer = null;
     this.animationAction = null;
     this.isVisible = false;
@@ -389,7 +374,6 @@ class RigViewer {
       this.prepareModel(boneLabels);
       this.prepareAnimation(gltf.animations);
       this.fitModelToStage();
-      this.buildTextureButton();
       this.buildBoneButtons();
       this.enableControls();
       this.status.hidden = true;
@@ -570,7 +554,7 @@ class RigViewer {
           geometries.add(geometry);
         }
       });
-      [record.displayMaterial, record.textureMaterial, record.weightMaterial].forEach((material) => {
+      [record.displayMaterial, record.weightMaterial].forEach((material) => {
         if (material) {
           collectMaterialResources(material, materials, textures);
         }
@@ -596,7 +580,6 @@ class RigViewer {
       this.mixer.uncacheRoot(this.model);
     }
 
-    this.controlsElement.querySelector('[data-mode="texture"]')?.remove();
     this.boneButtonHost.replaceChildren();
     this.controlsElement.querySelectorAll(".viewer-mode").forEach((button) => {
       button.disabled = true;
@@ -624,7 +607,6 @@ class RigViewer {
     this.skeletonVisual = null;
     this.meshRecords = [];
     this.boneRecords = [];
-    this.hasTextureMaterial = false;
     this.mixer = null;
     this.animationClip = null;
     this.animationAction = null;
@@ -672,6 +654,8 @@ class RigViewer {
 
   prepareModel(boneLabels) {
     const seenBones = new Set();
+    const sourceMaterials = new Set();
+    const sourceTextures = new Set();
 
     this.model.traverse((object) => {
       if (!object.isMesh) {
@@ -681,23 +665,18 @@ class RigViewer {
       object.castShadow = true;
       object.receiveShadow = true;
 
-      const sourceMaterial = object.material;
+      collectMaterialResources(object.material, sourceMaterials, sourceTextures);
       const sourceGeometry = object.geometry;
-      const textureMaterial = cloneMaterial(sourceMaterial);
-      const hasTexture = materialHasTexture(sourceMaterial);
       const displayGeometry = createSmoothedGeometry(sourceGeometry);
       const displayMaterial = createClayMaterial();
 
       object.geometry = displayGeometry;
       object.material = displayMaterial;
       sourceGeometry.dispose();
-      this.hasTextureMaterial ||= hasTexture;
       this.meshRecords.push({
         mesh: object,
         displayGeometry,
         displayMaterial,
-        textureMaterial,
-        hasTexture,
         weightGeometry: null,
         weightMaterial: null,
         boneColors: object.isSkinnedMesh
@@ -723,6 +702,9 @@ class RigViewer {
         });
       });
     });
+
+    sourceMaterials.forEach((material) => material.dispose());
+    sourceTextures.forEach((texture) => texture.dispose());
   }
 
   prepareAnimation(animations) {
@@ -898,22 +880,6 @@ class RigViewer {
     this.scene.add(this.ground);
   }
 
-  buildTextureButton() {
-    if (!this.hasTextureMaterial) {
-      return;
-    }
-
-    const meshButton = this.controlsElement.querySelector('[data-mode="mesh"]');
-    const button = document.createElement("button");
-    button.className = "viewer-mode";
-    button.type = "button";
-    button.dataset.mode = "texture";
-    button.textContent = "Tex";
-    button.setAttribute("aria-pressed", "false");
-    button.disabled = true;
-    meshButton?.after(button);
-  }
-
   buildBoneButtons() {
     const availableGroups = new Set(this.boneRecords.map((record) => record.group));
     const orderedGroups = [
@@ -942,8 +908,9 @@ class RigViewer {
   }
 
   setMode(nextMode, group = null) {
+    if (!["mesh", "weights", "skeleton"].includes(nextMode)) return;
+
     if (
-      (nextMode === "texture" && this.mode === "texture") ||
       (nextMode === "weights" && this.mode === "weights") ||
       (nextMode === "skeleton" && this.mode === "skeleton" && this.activeGroup === group)
     ) {
@@ -957,8 +924,6 @@ class RigViewer {
 
     if (nextMode === "weights") {
       this.applyWeightMaterials();
-    } else if (nextMode === "texture") {
-      this.applyTextureMaterials();
     } else if (nextMode === "skeleton") {
       this.modelRoot.updateMatrixWorld(true);
       this.createSkeletonVisual(group);
@@ -988,13 +953,6 @@ class RigViewer {
 
       record.mesh.geometry = record.weightGeometry;
       record.mesh.material = record.weightMaterial;
-    });
-  }
-
-  applyTextureMaterials() {
-    this.meshRecords.forEach((record) => {
-      record.mesh.geometry = record.displayGeometry;
-      record.mesh.material = record.textureMaterial;
     });
   }
 

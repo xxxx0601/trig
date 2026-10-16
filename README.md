@@ -177,7 +177,7 @@ Update the `TEMPLATES`, `RIG_URL`, and `ANIMATIONS` constants at the top of
 - Paper, Appendix, Code, Data, and Model link placeholders plus an in-page Video link
 - Six interactive GLB previews in a desktop 3 × 2 grid
 - Mesh, semantic skeleton groups, and full-body weight-color modes
-- Automatic `Tex` mode for GLB files that contain one or more texture maps
+- Texture-free homepage GLBs and Mesh, skeleton, and Weights controls
 - A character switcher showing one five-method animation comparison row at a time, with a placeholder for the missing Fox/MIA output
 - Immediate animation-card placeholders with loading spinners, followed by viewport-aware GLB loading, two-file concurrency, and WebGL cleanup
 - Bounding-box camera fitting that accounts for the viewer aspect ratio
@@ -202,12 +202,12 @@ The page loads `source/model1.glb` through `source/model6.glb` with a custom Thr
 
 Each card starts in Mesh mode:
 
-- Every model uses the same opaque neutral clay material in the viewer (color `#b8bec8`, metalness `0`, roughness `0.82`). The source GLB files are not modified.
+- Every model uses the same opaque neutral clay material in the viewer (color `#b8bec8`, metalness `0`, roughness `0.82`).
 - Coincident split vertices are smoothed at runtime when their exported normals fall within the crease threshold, which reduces faceted or rippled shading while preserving intentional hard edges.
 - The initial camera distance is calculated from all eight bounding-box corners, the camera field of view, and the live canvas aspect ratio so each character starts fully framed.
 - Semantic bone buttons are generated from annotation display names when a
   matching sidecar JSON exists, otherwise from the original GLB bone names.
-- A `Tex` button is generated immediately after `Mesh` only when the loaded GLB's original material references a texture. Texture-less models do not show the button.
+- The viewer supports Mesh, semantic skeleton groups, and Weights. It has no texture mode or `Tex` button.
 - Bone-name matching is case-insensitive substring matching.
 - Bones that match no semantic keyword are grouped under Body.
 - Bone groups are overlaid on the original Mesh as sphere joints and cylinder segments. Each semantic group uses separate fixed colors for joints and bone segments; workflow template previews use the same Body palette.
@@ -224,6 +224,14 @@ const BONE_KEYWORDS = ["skirt", "hair", "sleeve", "cape", "accessory"];
 To replace or extend the examples, update the `data-model` paths in `index.html`.
 
 Animation cards use the same `RigViewer` implementation as the static cards. The character tabs and five method columns are defined in `static/js/animation-grid.js`. Only the selected character's row is displayed, initially Model; inactive rows cannot load or render. Switching characters immediately pauses the old row, removes its queued requests, and cancels unfinished model downloads. Loaded cards use the existing bounded idle cache. `static/js/viewer.js` loads at most two nearby models at a time; the first clip in each GLB plays in a loop while its stage is onscreen. The five methods remain in one horizontally scrollable row on narrow screens. Tabs support arrow keys, Home, and End, and the missing Fox/MIA output has a visible placeholder.
+
+All 25 homepage GLBs (six static models and 19 animation results) contain no
+texture images or texture references. Embedded image bytes have been removed
+from the binary buffers. UV coordinates, tangents, vertex colors, geometry,
+skeletons, skinning weights, and animation data are preserved. Original models
+and their SHA-256 checksums are backed up under the Git-ignored
+`source/bck/models-with-textures-*/`, preserving their paths relative to `source/`.
+The standalone workflow assets are outside this cleanup's scope.
 
 ### Main-page performance and caching
 
