@@ -176,6 +176,7 @@ Update the `TEMPLATES`, `RIG_URL`, and `ANIMATIONS` constants at the top of
 - Paper metadata and author list
 - Paper, Appendix, Code, Data, and Model link placeholders plus an in-page Video link
 - Six interactive GLB previews in a desktop 3 × 2 grid
+- Six animated results above Animation Comparison, in two rows of three on desktop
 - Mesh, semantic skeleton groups, and full-body weight-color modes
 - Texture-free homepage GLBs and Mesh, skeleton, and Weights controls
 - A character switcher showing one five-method animation comparison row at a time, with a placeholder for the missing Fox/MIA output
@@ -223,6 +224,14 @@ const BONE_KEYWORDS = ["skirt", "hair", "sleeve", "cape", "accessory"];
 
 To replace or extend the examples, update the `data-model` paths in `index.html`.
 
+Animation Results loads the six GLBs in `source/anim_results/` above Animation
+Comparison. The desktop layout has two rows of three cards, with two columns on
+tablets and one on phones. Each card has the same Mesh, semantic skeleton, and
+Weights controls as the static results. These six cards form one playback group:
+all load before starting together, retain their original speed, and loop together
+at the shortest clip's duration (about 10.29 seconds). They use the same shared
+clock and viewport-aware pause/resume behavior as the comparison rows.
+
 Animation cards use the same `RigViewer` implementation as the static cards. The
 character tabs and five method columns are defined in `static/js/animation-grid.js`.
 Only the selected character's row is displayed, initially Model; inactive rows
@@ -243,12 +252,15 @@ clock; returning waits for any evicted models before restarting together. Missin
 results do not participate in the wait. Failed loads retain an error message, and
 the successful methods start together after all requests finish.
 
-All 25 homepage GLBs (six static models and 19 animation results) contain no
-texture images or texture references. Embedded image bytes have been removed
+All 31 homepage GLBs (six static models, six animation showcases, and 19 method
+comparison results) contain no texture images or texture references. Embedded
+image bytes have been removed
 from the binary buffers. UV coordinates, tangents, vertex colors, geometry,
-skeletons, skinning weights, and animation data are preserved. Original models
-and their SHA-256 checksums are backed up under the Git-ignored
+skeletons, skinning weights, and animation data are preserved. The initial 25
+models and their SHA-256 checksums are backed up under the Git-ignored
 `source/bck/models-with-textures-*/`, preserving their paths relative to `source/`.
+The six models in `source/anim_results/` were cleaned without creating another
+backup, as their originals were already backed up separately.
 The standalone workflow assets are outside this cleanup's scope.
 
 ### Main-page performance and caching
