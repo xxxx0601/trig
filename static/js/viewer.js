@@ -81,6 +81,10 @@ function retainIdleViewer(viewer) {
 class AnimationPlaybackGroup {
   constructor(panel) {
     this.panel = panel;
+    const playbackLimit = Number(panel.dataset.playbackLimit);
+    this.playbackLimit = Number.isFinite(playbackLimit) && playbackLimit > 0
+      ? playbackLimit
+      : Infinity;
     this.viewers = [];
     this.ready = false;
     this.elapsed = 0;
@@ -101,8 +105,8 @@ class AnimationPlaybackGroup {
 
   timeAt(now) {
     const elapsed = this.elapsed + (this.isPlaying ? Math.max(0, now - this.startedAt) / 1000 : 0);
-    // Preserve each clip's speed, cutting longer clips at the shortest one's
-    // endpoint so every method wraps back to the beginning on the same frame.
+    // Preserve each clip's speed and wrap every member on the same frame,
+    // at the shortest clip's endpoint or the panel's earlier playback limit.
     return this.loopDuration > 0 ? elapsed % this.loopDuration : elapsed;
   }
 
@@ -131,7 +135,7 @@ class AnimationPlaybackGroup {
         .filter((viewer) => !viewer.hasLoadError)
         .map((viewer) => viewer.animationClip?.duration)
         .filter((duration) => Number.isFinite(duration) && duration > 0);
-      this.loopDuration = durations.length ? Math.min(...durations) : 0;
+      this.loopDuration = durations.length ? Math.min(this.playbackLimit, ...durations) : 0;
       this.elapsed = this.ready ? this.timeAt(now) : 0;
       const playing = this.ready && !document.hidden && this.viewers.some((viewer) => (
         viewer.isEnabled !== false && viewer.isVisible && !viewer.hasLoadError

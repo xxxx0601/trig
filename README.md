@@ -228,9 +228,12 @@ Animation Results loads the six GLBs in `source/anim_results/` above Animation
 Comparison. The desktop layout has two rows of three cards, with two columns on
 tablets and one on phones. Each card has the same Mesh, semantic skeleton, and
 Weights controls as the static results. These six cards form one playback group:
-all load before starting together, retain their original speed, and loop together
-at the shortest clip's duration (about 10.29 seconds). They use the same shared
-clock and viewport-aware pause/resume behavior as the comparison rows.
+all load before starting together, retain their original speed, and play only the
+first seven seconds before restarting together. The `data-playback-limit="7"`
+attribute on `#animation-results-grid` caps this group's shared clock; any shorter
+clip still ends the loop earlier. The comparison rows retain their existing
+shortest-clip loop durations. Both sections share viewport-aware pause/resume
+behavior.
 
 Animation cards use the same `RigViewer` implementation as the static cards. The
 character tabs and five method columns are defined in `static/js/animation-grid.js`.

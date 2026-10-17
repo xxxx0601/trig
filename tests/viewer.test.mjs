@@ -201,8 +201,8 @@ inactive.setEnabled(false);
 assert.equal(canceledLoad, true);
 console.log("PASS: inactive character rows cannot load or play, including stale visibility callbacks; switching removes queued loads and cancels unfinished loads.");
 
-function comparison(h, durations) {
-  const group = new h.AnimationPlaybackGroup({ dataset: {} });
+function comparison(h, durations, dataset = {}) {
+  const group = new h.AnimationPlaybackGroup({ dataset });
   const requests = [];
   const completions = new Map();
   const makeRenderer = (viewer) => ({ setAnimationLoop: (callback) => { viewer.loop = callback; } });
@@ -351,3 +351,50 @@ assert.equal(fox.group.viewers[1].status.hidden, false);
 assert.equal(fox.group.viewers[1].status.textContent, "Unable to load this model.");
 assert.equal(fox.group.viewers[0].loop, fox.group.viewers[0].renderFrame);
 console.log("PASS: missing method placeholders are excluded; a failed load retains its error and does not leave successful comparisons waiting forever.");
+
+const homepage = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const resultsPanel = homepage.match(/<div\b[^>]*\bid="animation-results-grid"[^>]*>/)?.[0];
+const playbackLimit = resultsPanel?.match(/\bdata-playback-limit="([^"]+)"/)?.[1];
+assert.equal(playbackLimit, "7");
+assert.equal((homepage.match(/\bdata-playback-limit=/g) || []).length, 1);
+const limited = harness();
+const results = comparison(limited, [10.29, 10.29, 10.29, 10.29, 10.29, 13], { playbackLimit });
+results.group.update();
+for (let index = 0; index < 6; index++) {
+  limited.setNow((index + 1) * 100);
+  results.completions.get(index)();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(results.group.isPlaying, index === 5);
+}
+assert.equal(results.group.loopDuration, 7);
+assert.equal(results.group.timeAt(600), 0);
+assert.equal(results.group.timeAt(7599), 6.999);
+assert.equal(results.group.timeAt(7600), 0);
+assert.ok(Math.abs(results.group.timeAt(7800) - 0.2) < 1e-12);
+assert.equal(results.group.timeAt(14600), 0);
+for (let timestamp = 600; timestamp < 100000; timestamp += 17) {
+  const phase = results.group.timeAt(timestamp);
+  assert.ok(phase >= 0 && phase < 7, `Frame at ${timestamp}ms escaped the seven-second limit`);
+}
+limited.setNow(7500);
+limited.document.hidden = true;
+results.group.update();
+assert.equal(results.group.timeAt(20000), 6.9);
+limited.setNow(20000);
+limited.document.hidden = false;
+results.group.update();
+assert.equal(results.group.timeAt(20100), 0);
+assert.equal(results.group.timeAt(27100), 0);
+// A cap must never extend a shorter source clip or cap an unconfigured panel.
+results.group.viewers[0].animationClip.duration = 5;
+results.group.update();
+assert.equal(results.group.loopDuration, 5);
+const uncapped = comparison(harness(), [10.29, 13]);
+uncapped.group.viewers.forEach((viewer, index) => {
+  viewer.isInitialized = true;
+  viewer.animationClip = { duration: index === 0 ? 10.29 : 13 };
+  viewer.renderer = { setAnimationLoop() {} };
+});
+uncapped.group.update();
+assert.equal(uncapped.group.loopDuration, 10.29);
+console.log("PASS: the six Animation Results wait for all loads, play only [0, 7) seconds at original speed, wrap together even after delayed frames or background pauses, and leave comparison durations unchanged.");
