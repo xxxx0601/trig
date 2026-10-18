@@ -114,6 +114,96 @@ assert.equal(record.weightGeometry, firstWeightGeometry);
 assert.equal(record.mesh.geometry, firstWeightGeometry);
 console.log("PASS: Weights produces normalized colors on first use and reuses the same geometry on subsequent switches.");
 
+const overlayHarness = harness();
+class OverlayResource {
+  constructor(options) { Object.assign(this, options); this.disposeCount = 0; }
+  dispose() { this.disposeCount++; }
+}
+Object.assign(overlayHarness.context.THREE, {
+  Group: class {
+    constructor() { this.children = []; }
+    add(child) { this.children.push(child); }
+    remove(child) { this.children = this.children.filter((entry) => entry !== child); }
+  },
+  Mesh: class { constructor(geometry, material) { Object.assign(this, { geometry, material }); } },
+  MeshStandardMaterial: OverlayResource,
+  SphereGeometry: OverlayResource,
+  CylinderGeometry: OverlayResource,
+  Color: class {
+    constructor(value) { this.value = value; }
+    clone() { return new this.constructor(this.value); }
+    multiplyScalar() { return this; }
+  },
+});
+const boneButtons = [
+  { mode: "mesh" }, { mode: "skeleton", group: "body" },
+  { mode: "skeleton", group: "hair" }, { mode: "weights" },
+].map((dataset) => ({
+  dataset, attributes: {}, active: false,
+  classList: { toggle(name, active) { this.active = active; } },
+  setAttribute(name, value) { this.attributes[name] = value; },
+}));
+const bodyBone = { uuid: "body", isBone: true };
+const hairBone = { uuid: "hair", isBone: true, parent: bodyBone };
+const overlays = Object.create(overlayHarness.RigViewer.prototype);
+Object.assign(overlays, {
+  mode: "mesh", activeGroups: new Set(), meshRecords: [],
+  skeletonVisual: null, skeletonResources: null, skeletonJoints: [], skeletonSegments: [],
+  boneRecords: [{ bone: bodyBone, group: "body" }, { bone: hairBone, group: "hair" }],
+  scene: new overlayHarness.context.THREE.Group(),
+  modelRoot: { visible: true, updateMatrixWorld() {} },
+  controlsElement: { querySelectorAll: () => boneButtons },
+  updateSkeletonVisualPositions() {},
+});
+const activeBones = () => boneButtons.filter((button) => button.attributes["aria-pressed"] === "true")
+  .map((button) => button.dataset.group || button.dataset.mode);
+const assertDisposed = (resources) => resources.forEach((group) => {
+  Object.values(group).forEach((resource) => assert.equal(resource.disposeCount, 1));
+});
+overlays.setMode("skeleton", "body");
+const bodyResources = overlays.skeletonResources;
+assert.deepEqual(activeBones(), ["body"]);
+overlays.setMode("skeleton", "hair");
+assertDisposed(bodyResources);
+assert.deepEqual(activeBones(), ["body", "hair"]);
+assert.equal(overlays.scene.children.length, 1);
+assert.equal(overlays.skeletonResources.length, 2);
+assert.equal(overlays.skeletonJoints.length, 3);
+assert.equal(overlays.skeletonSegments.length, 1);
+assert.notEqual(overlays.skeletonResources[0].boneMaterial.color.value,
+  overlays.skeletonResources[1].boneMaterial.color.value);
+const bothResources = overlays.skeletonResources;
+overlays.setMode("skeleton", "body");
+assertDisposed(bothResources);
+assert.deepEqual(activeBones(), ["hair"]);
+assert.equal(overlays.skeletonSegments[0].bone, hairBone);
+assert.equal(overlays.skeletonSegments[0].parentBone, bodyBone);
+const hairResources = overlays.skeletonResources;
+overlays.setMode("skeleton", "hair");
+assertDisposed(hairResources);
+assert.deepEqual(activeBones(), ["mesh"]);
+assert.equal(overlays.scene.children.length, 0);
+assert.equal(overlays.skeletonJoints.length, 0);
+overlays.setMode("skeleton", "body");
+overlays.setMode("skeleton", "hair");
+const beforeWeights = overlays.skeletonResources;
+overlays.setMode("weights");
+assertDisposed(beforeWeights);
+assert.deepEqual(activeBones(), ["weights"]);
+assert.equal(overlays.activeGroups.size, 0);
+assert.equal(overlays.skeletonVisual, null);
+overlays.setMode("skeleton", "hair");
+assert.deepEqual(activeBones(), ["hair"]);
+overlays.setMode("skeleton", "missing");
+assert.deepEqual(activeBones(), ["hair"]);
+const beforeMesh = overlays.skeletonResources;
+overlays.setMode("mesh");
+assertDisposed(beforeMesh);
+assert.deepEqual(activeBones(), ["mesh"]);
+assert.equal(overlays.activeGroups.size, 0);
+assert.equal(overlays.scene.children.length, 0);
+console.log("PASS: multiple bone groups keep independent colors and pressed states; deselecting one preserves the others; Mesh/Weights clear overlays and dispose every group's resources exactly once.");
+
 const lifecycle = Object.create(h.RigViewer.prototype);
 const loopCalls = [];
 Object.assign(lifecycle, {

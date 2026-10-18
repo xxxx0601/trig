@@ -75,19 +75,6 @@
     }
     card.append(controls);
 
-    const instructions = document.createElement("p");
-    instructions.className = "model-instructions";
-    if (resultExists) {
-      instructions.innerHTML = `
-        <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-        Drag · Scroll to zoom
-      `;
-    } else {
-      instructions.setAttribute("aria-hidden", "true");
-      instructions.innerHTML = "&nbsp;";
-    }
-    card.append(instructions);
-
     return card;
   }
 

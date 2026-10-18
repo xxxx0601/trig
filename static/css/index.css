@@ -217,11 +217,6 @@ body {
   padding-top: 3rem;
 }
 
-.section-lead {
-  color: var(--muted);
-  margin: -0.75rem auto 1.5rem;
-  max-width: 760px;
-}
 
 .animation-grid {
   gap: 0.7rem;
@@ -344,11 +339,6 @@ body {
   padding: 0.4rem 0.52rem;
 }
 
-.animation-card .model-instructions {
-  font-size: 0.68rem;
-  line-height: 1.4;
-  padding: 0.5rem 0.35rem;
-}
 
 .rig-canvas {
   display: block;
@@ -452,21 +442,7 @@ body {
   opacity: 0.5;
 }
 
-.model-instructions {
-  background: #fff;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-family: "Google Sans", sans-serif;
-  font-size: 0.8rem;
-  margin: 0;
-  padding: 0.65rem 0.8rem;
-  text-align: center;
-}
 
-.model-instructions span {
-  color: var(--accent);
-  margin-right: 0.3rem;
-}
 
 .abstract-copy {
   color: #353535;

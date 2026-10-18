@@ -388,7 +388,7 @@ class RigViewer {
     this.boneButtonHost = card.querySelector(".bone-mode-buttons");
 
     this.mode = "mesh";
-    this.activeGroup = null;
+    this.activeGroups = new Set();
     this.model = null;
     this.modelRoot = null;
     this.ground = null;
@@ -706,7 +706,7 @@ class RigViewer {
     this.card.setAttribute("aria-busy", "true");
 
     this.mode = "mesh";
-    this.activeGroup = null;
+    this.activeGroups.clear();
     this.model = null;
     this.modelRoot = null;
     this.ground = null;
@@ -1017,12 +1017,14 @@ class RigViewer {
   setMode(nextMode, group = null) {
     if (!["mesh", "weights", "skeleton"].includes(nextMode)) return;
 
-    if (
-      (nextMode === "weights" && this.mode === "weights") ||
-      (nextMode === "skeleton" && this.mode === "skeleton" && this.activeGroup === group)
-    ) {
-      nextMode = "mesh";
-      group = null;
+    if (nextMode === "skeleton") {
+      if (!this.boneRecords.some((record) => record.group === group)) return;
+      if (this.activeGroups.has(group)) this.activeGroups.delete(group);
+      else this.activeGroups.add(group);
+      nextMode = this.activeGroups.size ? "skeleton" : "mesh";
+    } else {
+      if (nextMode === "weights" && this.mode === "weights") nextMode = "mesh";
+      this.activeGroups.clear();
     }
 
     this.restoreMeshMaterials();
@@ -1033,11 +1035,10 @@ class RigViewer {
       this.applyWeightMaterials();
     } else if (nextMode === "skeleton") {
       this.modelRoot.updateMatrixWorld(true);
-      this.createSkeletonVisual(group);
+      this.createSkeletonVisual(this.activeGroups);
     }
 
     this.mode = nextMode;
-    this.activeGroup = nextMode === "skeleton" ? group : null;
     this.updateActiveButtons();
   }
 
@@ -1070,67 +1071,66 @@ class RigViewer {
     });
   }
 
-  createSkeletonVisual(group) {
-    const records = this.boneRecords.filter((record) => record.group === group);
+  createSkeletonVisual(groups) {
     const visual = new THREE.Group();
-    visual.name = `skeleton-${group}`;
+    visual.name = "skeleton-overlays";
+    this.skeletonResources = [];
 
-    if (records.length === 0) {
-      this.skeletonVisual = visual;
-      this.scene.add(visual);
-      return;
-    }
+    groups.forEach((group) => {
+      const records = this.boneRecords.filter((record) => record.group === group);
+      if (records.length === 0) return;
 
-    const makeMaterial = (color) => new THREE.MeshStandardMaterial({
-      color,
-      emissive: color.clone().multiplyScalar(0.16),
-      metalness: 0,
-      roughness: 0.42,
-      depthTest: false,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    const jointMaterial = makeMaterial(colorForGroup(group, "joint"));
-    const boneMaterial = makeMaterial(colorForGroup(group, "bone"));
-    const jointGeometry = new THREE.SphereGeometry(JOINT_RADIUS, 16, 12);
-    const boneGeometry = new THREE.CylinderGeometry(
-      BONE_RADIUS,
-      BONE_RADIUS,
-      1,
-      12,
-      1,
-      false,
-    );
+      const makeMaterial = (color) => new THREE.MeshStandardMaterial({
+        color,
+        emissive: color.clone().multiplyScalar(0.16),
+        metalness: 0,
+        roughness: 0.42,
+        depthTest: false,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const jointMaterial = makeMaterial(colorForGroup(group, "joint"));
+      const boneMaterial = makeMaterial(colorForGroup(group, "bone"));
+      const jointGeometry = new THREE.SphereGeometry(JOINT_RADIUS, 16, 12);
+      const boneGeometry = new THREE.CylinderGeometry(
+        BONE_RADIUS,
+        BONE_RADIUS,
+        1,
+        12,
+        1,
+        false,
+      );
 
-    this.skeletonResources = { jointMaterial, boneMaterial, jointGeometry, boneGeometry };
-    const visibleJointIds = new Set();
-    const addJoint = (bone) => {
-      if (visibleJointIds.has(bone.uuid)) {
-        return;
-      }
+      this.skeletonResources.push({ jointMaterial, boneMaterial, jointGeometry, boneGeometry });
+      const visibleJointIds = new Set();
+      const addJoint = (bone) => {
+        if (visibleJointIds.has(bone.uuid)) {
+          return;
+        }
 
-      visibleJointIds.add(bone.uuid);
-      const joint = new THREE.Mesh(jointGeometry, jointMaterial);
-      joint.renderOrder = 11;
-      visual.add(joint);
-      this.skeletonJoints.push({ bone, mesh: joint });
-    };
+        visibleJointIds.add(bone.uuid);
+        const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+        joint.renderOrder = 11;
+        visual.add(joint);
+        this.skeletonJoints.push({ bone, mesh: joint });
+      };
 
-    records.forEach(({ bone }) => {
-      addJoint(bone);
+      records.forEach(({ bone }) => {
+        addJoint(bone);
 
-      if (!bone.parent?.isBone) {
-        return;
-      }
+        if (!bone.parent?.isBone) {
+          return;
+        }
 
-      addJoint(bone.parent);
-      const boneSegment = new THREE.Mesh(boneGeometry, boneMaterial);
-      boneSegment.renderOrder = 10;
-      visual.add(boneSegment);
-      this.skeletonSegments.push({
-        bone,
-        parentBone: bone.parent,
-        mesh: boneSegment,
+        addJoint(bone.parent);
+        const boneSegment = new THREE.Mesh(boneGeometry, boneMaterial);
+        boneSegment.renderOrder = 10;
+        visual.add(boneSegment);
+        this.skeletonSegments.push({
+          bone,
+          parentBone: bone.parent,
+          mesh: boneSegment,
+        });
       });
     });
 
@@ -1170,10 +1170,12 @@ class RigViewer {
     }
 
     this.scene.remove(this.skeletonVisual);
-    this.skeletonResources?.jointGeometry.dispose();
-    this.skeletonResources?.boneGeometry.dispose();
-    this.skeletonResources?.jointMaterial.dispose();
-    this.skeletonResources?.boneMaterial.dispose();
+    this.skeletonResources?.forEach((resources) => {
+      resources.jointGeometry.dispose();
+      resources.boneGeometry.dispose();
+      resources.jointMaterial.dispose();
+      resources.boneMaterial.dispose();
+    });
     this.skeletonVisual = null;
     this.skeletonResources = null;
     this.skeletonJoints = [];
@@ -1184,7 +1186,7 @@ class RigViewer {
     this.controlsElement.querySelectorAll(".viewer-mode").forEach((button) => {
       const isSkeletonButton = button.dataset.mode === "skeleton";
       const isActive = isSkeletonButton
-        ? this.mode === "skeleton" && button.dataset.group === this.activeGroup
+        ? this.mode === "skeleton" && this.activeGroups.has(button.dataset.group)
         : button.dataset.mode === this.mode;
 
       button.classList.toggle("is-active", isActive);

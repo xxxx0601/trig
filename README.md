@@ -212,7 +212,10 @@ Each card starts in Mesh mode:
 - Bone-name matching is case-insensitive substring matching.
 - Bones that match no semantic keyword are grouped under Body.
 - Bone groups are overlaid on the original Mesh as sphere joints and cylinder segments. Each semantic group uses separate fixed colors for joints and bone segments; workflow template previews use the same Body palette.
-- Clicking the active bone button again removes the overlay and returns to Mesh only.
+- Bone buttons support multiple selections: Body, Hair, and other groups can be
+  overlaid together with their own colors. Clicking a selected group removes only
+  that overlay; deselecting the last group returns to Mesh. Mesh and Weights clear
+  all selected bone groups.
 - Weights blends each vertex from the stable colors of its influencing bones.
 
 Edit `BONE_KEYWORDS` in `static/js/bone-labels.js` to change the shared semantic

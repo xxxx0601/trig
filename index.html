@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <link rel="stylesheet" href="./static/css/bulma.min.css">
-  <link rel="stylesheet" href="./static/css/index.css?v=20261009-video1">
+  <link rel="stylesheet" href="./static/css/index.css?v=20261018-controls1">
   <script type="importmap">
     {
       "imports": {
@@ -18,7 +18,7 @@
       }
     }
   </script>
-  <script type="module" src="./static/js/viewer.js?v=20261017-results-7s1"></script>
+  <script type="module" src="./static/js/viewer.js?v=20261018-multi-bones1"></script>
   <script src="./static/js/reveal.js?v=20260831-1" defer></script>
 </head>
 <body>
@@ -135,9 +135,6 @@
   <section class="section animation-results-section" aria-labelledby="animation-results-title">
     <div class="container is-widescreen">
       <h2 class="title is-3 has-text-centered" id="animation-results-title" data-reveal>Animation Results</h2>
-      <p class="section-lead has-text-centered" data-reveal data-reveal-delay="70">
-        Explore animated results with mesh, semantic skeleton groups, and skinning weights.
-      </p>
       <div class="model-grid animation-panel" id="animation-results-grid" data-playback-limit="7" data-reveal data-reveal-delay="140">
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/0c62ce1c-454d-548c-8ddc-6b025a0d5522_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -152,10 +149,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/1e9dadb8-2309-5704-8d22-20a40be99433_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -170,10 +163,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/8654f942-89ad-58a8-9156-5d722cb17d35_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -188,10 +177,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/ab738fc7-3b99-5b24-bcf5-e33e0291d583_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -206,10 +191,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/ba1d81b0-c7f8-5eb8-9f8a-f03d2098c435_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -224,10 +205,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer is-loading" data-model="./source/anim_results/fdf7dd8a-9f9a-595c-8eef-7b93347ae2a5_up_tex.glb" data-animation="true" aria-busy="true">
           <header class="model-card-header">
@@ -242,10 +219,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
       </div>
     </div>
@@ -254,9 +227,6 @@
   <section class="section animation-section" aria-labelledby="animation-title">
     <div class="container is-widescreen">
       <h2 class="title is-3 has-text-centered" id="animation-title" data-reveal>Animation Comparison</h2>
-      <p class="section-lead has-text-centered" data-reveal data-reveal-delay="70">
-        Choose a character to compare ground truth and four rigging results driven by the same motion.
-      </p>
       <div class="animation-comparison" data-reveal data-reveal-delay="140">
         <div class="animation-selector">
           <div class="animation-tabs" id="animation-tabs" role="tablist" aria-label="Choose a character"></div>
@@ -264,7 +234,7 @@
         <div class="animation-strip" aria-label="Five-method animation comparison">
           <div id="animation-grid"></div>
         </div>
-        <script src="./static/js/animation-grid.js?v=20261009-tabs1"></script>
+        <script src="./static/js/animation-grid.js?v=20261018-controls1"></script>
       </div>
     </div>
   </section>
@@ -286,10 +256,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer" data-model="./source/model2.glb">
           <header class="model-card-header">
@@ -304,10 +270,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer" data-model="./source/model3.glb">
           <header class="model-card-header">
@@ -322,10 +284,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer" data-model="./source/model4.glb">
           <header class="model-card-header">
@@ -340,10 +298,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer" data-model="./source/model5.glb">
           <header class="model-card-header">
@@ -358,10 +312,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
         <article class="model-card rig-viewer" data-model="./source/model6.glb">
           <header class="model-card-header">
@@ -376,10 +326,6 @@
             <span class="bone-mode-buttons"></span>
             <button class="viewer-mode" type="button" data-mode="weights" aria-pressed="false" disabled>Weights</button>
           </div>
-          <p class="model-instructions">
-            <span aria-hidden="true"><i class="fa-solid fa-arrows-rotate"></i></span>
-            Drag to rotate · Scroll or pinch to zoom
-          </p>
         </article>
       </div>
     </div>
