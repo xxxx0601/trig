@@ -56,7 +56,7 @@
     } else {
       const unavailable = document.createElement("p");
       unavailable.className = "animation-unavailable";
-      unavailable.textContent = "No result available";
+      unavailable.textContent = "Generation failed";
       stage.append(unavailable);
     }
     card.append(stage);
