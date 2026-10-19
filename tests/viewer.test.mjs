@@ -15,9 +15,24 @@ function harness(saved = new Map(), blockedStorage = false) {
     normalize() { return this; }
     fromArray(values) { this.values = [...values]; return this; }
     toArray() { return [...this.values]; }
+    copy(vector) { this.values = [...vector.values]; return this; }
+    multiplyScalar(scale) { this.values = this.values.map((value) => value * scale); return this; }
+    add(vector) { this.values = this.values.map((value, index) => value + vector.values[index]); return this; }
+    get x() { return this.values[0]; }
+    get y() { return this.values[1]; }
+    get z() { return this.values[2]; }
   }
   class Box3 {
     constructor(min, max) { this.min = min; this.max = max; }
+    makeEmpty() { this.min = new Vector3(Infinity, Infinity, Infinity); this.max = new Vector3(-Infinity, -Infinity, -Infinity); return this; }
+    clone() { return new Box3(new Vector3().copy(this.min), new Vector3().copy(this.max)); }
+    union(box) {
+      this.min.values = this.min.values.map((value, index) => Math.min(value, box.min.values[index]));
+      this.max.values = this.max.values.map((value, index) => Math.max(value, box.max.values[index]));
+      return this;
+    }
+    getCenter(target) { return target.fromArray(this.min.values.map((value, index) => (value + this.max.values[index]) / 2)); }
+    getSize(target) { return target.fromArray(this.max.values.map((value, index) => value - this.min.values[index])); }
   }
   class BufferAttribute {
     constructor(array, itemSize) { this.array = array; this.itemSize = itemSize; }
@@ -488,3 +503,63 @@ uncapped.group.viewers.forEach((viewer, index) => {
 uncapped.group.update();
 assert.equal(uncapped.group.loopDuration, 10.29);
 console.log("PASS: the six Animation Results wait for all loads, play only [0, 7) seconds at original speed, wrap together even after delayed frames or background pauses, and leave comparison durations unchanged.");
+
+// A spreading cape must not shrink the character relative to another method.
+const framing = harness();
+const { Vector3: FramingVector, Box3: FramingBox } = framing.context.THREE;
+const box = (min, max) => new FramingBox(new FramingVector(...min), new FramingVector(...max));
+const framingGroup = new framing.AnimationPlaybackGroup({ dataset: { sharedFraming: "true" } });
+const referenceViewer = Object.create(framing.RigViewer.prototype);
+const appliedMatrices = [];
+const bindMatrix = { name: "bind space" };
+const animatedObjectMatrix = { name: "FBX armature with different rotation and units" };
+referenceViewer.meshRecords = [{
+  mesh: { isSkinnedMesh: true, bindMatrix, matrixWorld: animatedObjectMatrix },
+  displayGeometry: { boundingBox: { clone: () => ({ applyMatrix4(matrix) { appliedMatrices.push(matrix); return box([-1, 0, -1], [1, 5, 1]); } }) } },
+}];
+referenceViewer.computeReferenceBounds();
+assert.equal(appliedMatrices[0], bindMatrix, "reference height must not apply the armature object transform twice");
+framingGroup.viewers = [6, 3].map((motionWidth, index) => {
+  // Same-size bind meshes, but one exported animation starts translated away
+  // from its bind origin, as in Arissa/UniRig.
+  const offset = index === 0 ? [0, 0, 0] : [2, 2.5, -1];
+  const translatedBox = (min, max) => box(
+    min.map((value, axis) => value + offset[axis]),
+    max.map((value, axis) => value + offset[axis]),
+  );
+  const viewer = Object.create(framing.RigViewer.prototype);
+  Object.assign(viewer, {
+    animationGroup: framingGroup,
+    modelRoot: { updateMatrixWorld() {}, scale: { setScalar(value) { this.value = value; } }, position: new FramingVector() },
+    computeContentBounds: () => translatedBox([-motionWidth / 2, 0, -1], [motionWidth / 2, 5, 1]),
+    computeReferenceBounds: () => box([-1, 0, -1], [1, 5, 1]),
+    computeInitialPoseBounds: () => translatedBox([-1, 0, -1], [1, 5, 1]),
+    frameCameraToBox(value) { this.lastCameraBox = value; this.frameCalls = (this.frameCalls || 0) + 1; },
+    createGround() {},
+  });
+  viewer.fitModelToStage();
+  return viewer;
+});
+assert.equal(framingGroup.viewers[0].modelRoot.scale.value, framingGroup.viewers[1].modelRoot.scale.value);
+framingGroup.viewers.forEach((viewer) => {
+  assert.ok(viewer.fittedBox.getCenter(new FramingVector()).toArray().every((value) => Math.abs(value) < 1e-12),
+    "different animation start offsets must be removed without changing scale");
+});
+framingGroup.updateSharedFraming();
+const sharedBoxes = framingGroup.viewers.map((viewer) => viewer.lastCameraBox);
+assert.deepEqual(sharedBoxes[0].min.toArray(), sharedBoxes[1].min.toArray());
+assert.deepEqual(sharedBoxes[0].max.toArray(), sharedBoxes[1].max.toArray());
+assert.equal(sharedBoxes[0].max.x, 1.35);
+assert.ok(Math.abs(framingGroup.viewers[1].fittedBox.max.x - 0.675) < 1e-12);
+framingGroup.updateSharedFraming();
+assert.equal(framingGroup.viewers[0].frameCalls, 2, "unchanged groups must not reset the camera");
+framingGroup.viewers[0].hasUserFramedView = true;
+framingGroup.viewers[1].fittedBox = box([-2, -1, -1], [2, 1, 1]);
+framingGroup.updateSharedFraming();
+assert.equal(framingGroup.viewers[0].frameCalls, 2, "preserve user framing");
+assert.equal(framingGroup.viewers[1].lastCameraBox.max.x, 2, "refresh after a model is reloaded");
+const resized = framingGroup.viewers[1];
+Object.assign(resized, { stage: { clientWidth: 300, clientHeight: 450 }, renderer: { setSize() {} }, camera: { updateProjectionMatrix() {} } });
+resized.resize();
+assert.equal(resized.lastCameraBox, resized.sharedFramingBox, "resizing retains shared comparison framing");
+console.log("PASS: comparison methods retain equal reference height, align differing animation start offsets, share full motion camera bounds, refresh after reload, preserve manual views, and keep shared framing on resize.");

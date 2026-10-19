@@ -86,6 +86,8 @@ class AnimationPlaybackGroup {
       ? playbackLimit
       : Infinity;
     this.viewers = [];
+    this.sharedFraming = panel.dataset.sharedFraming === "true";
+    this.framingBoxes = [];
     this.ready = false;
     this.elapsed = 0;
     this.loopDuration = 0;
@@ -131,6 +133,8 @@ class AnimationPlaybackGroup {
       // Errors settle a member too: retain its error message and let the other
       // methods start together after every request has finished.
       this.ready = enabled && readyCount === this.viewers.length;
+      if (this.ready && this.sharedFraming) this.updateSharedFraming();
+      else this.framingBoxes = [];
       const durations = this.viewers
         .filter((viewer) => !viewer.hasLoadError)
         .map((viewer) => viewer.animationClip?.duration)
@@ -159,6 +163,22 @@ class AnimationPlaybackGroup {
     } finally {
       this.isUpdating = false;
     }
+  }
+
+  updateSharedFraming() {
+    const members = this.viewers.filter((viewer) => !viewer.hasLoadError && viewer.fittedBox);
+    const boxes = members.map((viewer) => viewer.fittedBox);
+    if (boxes.length === this.framingBoxes.length
+      && boxes.every((box, index) => box === this.framingBoxes[index])) return;
+    this.framingBoxes = boxes;
+    if (!boxes.length) return;
+
+    const sharedBox = new THREE.Box3().makeEmpty();
+    boxes.forEach((box) => sharedBox.union(box));
+    members.forEach((viewer) => {
+      viewer.sharedFramingBox = sharedBox.clone();
+      if (!viewer.hasUserFramedView) viewer.frameCameraToBox(viewer.sharedFramingBox);
+    });
   }
 }
 
@@ -406,6 +426,7 @@ class RigViewer {
     this.modelFingerprint = null;
     this.hasUserFramedView = false;
     this.fittedBox = null;
+    this.sharedFramingBox = null;
     this.lastFrameTime = null;
     this.isInitialized = false;
     this.hasLoadError = false;
@@ -717,6 +738,7 @@ class RigViewer {
     this.animationClip = null;
     this.animationAction = null;
     this.fittedBox = null;
+    this.sharedFramingBox = null;
     this.boundsCacheUrl = null;
     this.modelFingerprint = null;
     this.hasUserFramedView = false;
@@ -739,7 +761,7 @@ class RigViewer {
     this.camera.updateProjectionMatrix();
 
     if (this.fittedBox && !this.hasUserFramedView) {
-      this.frameCameraToBox(this.fittedBox);
+      this.frameCameraToBox(this.sharedFramingBox || this.fittedBox);
     }
   }
 
@@ -892,10 +914,22 @@ class RigViewer {
     this.modelRoot.updateMatrixWorld(true);
 
     const initialBox = this.computeContentBounds();
-    const center = initialBox.getCenter(new THREE.Vector3());
-    const size = initialBox.getSize(new THREE.Vector3());
-    const largestDimension = Math.max(size.x, size.y, size.z) || 1;
-    const scale = MODEL_TARGET_SIZE / largestDimension;
+    // Compare methods at the same bind-pose height. Animation-dependent cape
+    // spread must affect the shared camera, rather than each character's scale.
+    const referenceBox = this.animationGroup?.sharedFraming
+      ? this.computeReferenceBounds()
+      : initialBox;
+    // A centered bind mesh may acquire a floor offset from its animation rig.
+    // Align the first visible pose, while preserving every later root motion.
+    const alignmentBox = this.animationGroup?.sharedFraming
+      ? this.computeInitialPoseBounds()
+      : initialBox;
+    const center = alignmentBox.getCenter(new THREE.Vector3());
+    const size = referenceBox.getSize(new THREE.Vector3());
+    const referenceSize = this.animationGroup?.sharedFraming
+      ? size.y || 1
+      : Math.max(size.x, size.y, size.z) || 1;
+    const scale = MODEL_TARGET_SIZE / referenceSize;
 
     this.modelRoot.scale.setScalar(scale);
     this.modelRoot.position.copy(center).multiplyScalar(-scale);
@@ -906,6 +940,25 @@ class RigViewer {
     this.fittedBox.max.multiplyScalar(scale).add(this.modelRoot.position);
     this.frameCameraToBox(this.fittedBox);
     this.createGround(this.fittedBox);
+  }
+
+  computeInitialPoseBounds() {
+    this.mixer?.setTime(0);
+    this.modelRoot.updateMatrixWorld(true);
+    return new THREE.Box3().setFromObject(this.modelRoot, true);
+  }
+
+  computeReferenceBounds() {
+    const bounds = new THREE.Box3().makeEmpty();
+    this.meshRecords.forEach(({ mesh, displayGeometry }) => {
+      if (!displayGeometry.boundingBox) displayGeometry.computeBoundingBox();
+      // glTF skinned vertices are in bind space: the armature's object transform
+      // is already included by the joint matrices. Applying matrixWorld again
+      // can rotate or rescale that reference a second time (e.g. FBX units).
+      const referenceMatrix = mesh.isSkinnedMesh ? mesh.bindMatrix : mesh.matrixWorld;
+      bounds.union(displayGeometry.boundingBox.clone().applyMatrix4(referenceMatrix));
+    });
+    return bounds;
   }
 
   computeContentBounds() {

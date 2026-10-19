@@ -246,6 +246,31 @@ removes its queued requests, and cancels unfinished model downloads. The five
 methods remain in one horizontally scrollable row on narrow screens. Tabs support
 arrow keys, Home, and End, and the missing Fox/MIA output has a visible placeholder.
 
+Comparison rows normalize each method to the same bind-pose mesh height and
+align the center of its first animated pose. This also handles rigs such as
+Arissa/UniRig whose animation adds a floor offset to a centered bind mesh. The
+alignment is a constant model transform; later jumps and root motion are retained.
+Once all methods load, their normalized animation bounds are combined
+for a shared camera fit. A method's larger cape motion therefore no longer
+shrinks its character relative to the others. Resizing retains this shared fit;
+manual camera changes remain local to that card. Skinned reference bounds use
+bind space, avoiding a second application of FBX armature rotations or units.
+
+The Elf Archer tab uses `ElfAr_run.glb` in each of the five method directories.
+These were converted from the adjacent FBXs with Blender 5.0.0, retaining mesh
+topology, bone names and the running clip. For the viewer's four-influence
+skinning, the strongest four weights per vertex are retained and normalized.
+Materials, images, UVs,
+tangents and vertex colors were omitted, and duplicate animation keys optimized.
+The five GLBs total 1,838,064 bytes versus 10,149,392 bytes for the original FBXs
+(81.9% smaller); the original FBXs retain all source weights alongside the GLBs.
+The UniRig FBX contains invalid custom normals (47.36% of triangle-corner normals
+oppose the geometric face normal). Its GLB rebuilds smooth normals from the
+original topology, reducing that rate to 0.12%, while retaining geometry, skinning,
+bones and animation. All five source meshes have 4,431 vertices, 8,049 triangles
+and the same 60 connected components; there is no extra mesh unique to GT/Ours.
+Their larger sampled bounds come from the animation, especially cape spread.
+
 When any method approaches the viewport, the entire selected comparison row loads
 with at most two concurrent model requests, including horizontally hidden cards.
 Prepared models wait at the beginning until all available methods finish loading.
@@ -258,16 +283,17 @@ clock; returning waits for any evicted models before restarting together. Missin
 results do not participate in the wait. Failed loads retain an error message, and
 the successful methods start together after all requests finish.
 
-All 31 homepage GLBs (six static models, six animation showcases, and 19 method
+All 36 homepage GLBs (six static models, six animation showcases, and 24 method
 comparison results) contain no texture images or texture references. Embedded
 image bytes have been removed
-from the binary buffers. UV coordinates, tangents, vertex colors, geometry,
-skeletons, skinning weights, and animation data are preserved. The initial 25
+from the binary buffers. For the previous 31 models, UV coordinates, tangents,
+vertex colors, geometry, skeletons, skinning weights, and animation data are preserved. The initial 25
 models and their SHA-256 checksums are backed up under the Git-ignored
 `source/bck/models-with-textures-*/`, preserving their paths relative to `source/`.
 The six models in `source/anim_results/` were cleaned without creating another
 backup, as their originals were already backed up separately.
-The standalone workflow assets are outside this cleanup's scope.
+The Elf Archer conversion additionally omits UVs, tangents and vertex colors as
+described above. The standalone workflow assets are outside this cleanup's scope.
 
 ### Main-page performance and caching
 

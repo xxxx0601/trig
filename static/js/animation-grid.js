@@ -14,6 +14,7 @@
     { file: "Arissa_TG_update.glb", label: "Arissa" },
     { file: "fox_TG.glb", label: "Fox", missing: ["mia"] },
     { file: "peasant_run.glb", label: "Peasant" },
+    { file: "ElfAr_run.glb", label: "Elf Archer" },
   ];
 
   function hasResult(sample, methodDirectory) {
@@ -129,6 +130,7 @@
 
     const panel = document.createElement("div");
     panel.className = "model-grid animation-grid animation-panel";
+    panel.dataset.sharedFraming = "true";
     panel.id = `animation-panel-${index}`;
     panel.setAttribute("role", "tabpanel");
     panel.setAttribute("aria-labelledby", button.id);
