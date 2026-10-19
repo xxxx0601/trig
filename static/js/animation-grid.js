@@ -10,11 +10,11 @@
     { directory: "pinocchio", label: "Pinocchio" },
   ];
   const samples = [
-    { file: "514_WD.glb", label: "Model" },
-    { file: "Arissa_TG_update.glb", label: "Arissa" },
-    { file: "fox_TG.glb", label: "Fox", missing: ["mia"] },
-    { file: "peasant_run.glb", label: "Peasant" },
-    { file: "ElfAr_run.glb", label: "Elf Archer" },
+    { file: "514_WD.glb", label: "Model 1" },
+    { file: "Arissa_TG_update.glb", label: "Model 2" },
+    { file: "fox_TG.glb", label: "Model 3", missing: ["mia"] },
+    { file: "peasant_run.glb", label: "Model 4" },
+    { file: "ElfAr_run.glb", label: "Model 5" },
   ];
 
   function hasResult(sample, methodDirectory) {
